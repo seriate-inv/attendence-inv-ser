@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attendance Entry Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center min-vh-100">
+
+  <div class="container-sm">
+    <h2 class="text-center text-success mb-4">
+      <i class="bi bi-person-plus-fill me-2"></i>Attendance Entry
+    </h2>
+
+    <div class="card border border-success shadow-lg rounded-4 animate__animated animate__fadeIn">
+      <div class="card-body p-4">
+        <form id="attendanceForm" action="/submit" method="POST" enctype="multipart/form-data">
+          <!-- Name -->
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-person-fill me-1 text-success"></i> Name
+            </label>
+            <input type="text" class="form-control" id="name" name="name" required>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-envelope-fill me-1 text-success"></i> Email
+            </label>
+            <input type="email" class="form-control" id="email" name="email" required>
+          </div>
+
+          <!-- Photo Upload -->
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-camera-fill me-1 text-success"></i> Upload Photo
+            </label>
+            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
+          </div>
+
+          <!-- Hidden Location -->
+          <input type="hidden" name="latitude" id="latitude" />
+          <input type="hidden" name="longitude" id="longitude" />
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-cloud-upload-fill me-1"></i> Submit Entry
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div id="outputSection" class="mt-4 bg-white border border-2 border-info rounded-4 p-3 d-none">
+      <h5 class="mb-3">
+        <i class="bi bi-eye-fill text-info me-1"></i> Submission Preview
+      </h5>
+      <ul class="list-group">
+        <li class="list-group-item"><strong>Name:</strong> <span id="outName"></span></li>
+        <li class="list-group-item"><strong>Email:</strong> <span id="outEmail"></span></li>
+        <li class="list-group-item"><strong>Time:</strong> <span id="outTime"></span></li>
+        <li class="list-group-item"><strong>Location:</strong> <span id="outLocation"></span></li>
+        <li class="list-group-item">
+          <strong>Photo:</strong><br>
+          <img id="outPhoto" src="" alt="Uploaded" class="img-thumbnail mt-2" width="150">
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Prefill from localStorage
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedName = localStorage.getItem("employee_name");
+      const savedEmail = localStorage.getItem("employee_email");
+      if (savedName) document.getElementById("name").value = savedName;
+      if (savedEmail) document.getElementById("email").value = savedEmail;
+    });
+
+    // Preview and Geolocation
+    document.getElementById("photo").addEventListener("change", function () {
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const file = this.files[0];
+
+      localStorage.setItem("employee_name", name);
+      localStorage.setItem("employee_email", email);
+
+      const reader = new FileReader();
+      reader.onload = () => document.getElementById("outPhoto").src = reader.result;
+      if (file) reader.readAsDataURL(file);
+
+      const now = new Date();
+      document.getElementById("outTime").textContent = now.toLocaleString();
+      document.getElementById("outName").textContent = name;
+      document.getElementById("outEmail").textContent = email;
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const lat = pos.coords.latitude.toFixed(4);
+            const lng = pos.coords.longitude.toFixed(4);
+            document.getElementById("latitude").value = lat;
+            document.getElementById("longitude").value = lng;
+            document.getElementById("outLocation").textContent = `Lat: ${lat}, Lng: ${lng}`;
+            document.getElementById("outputSection").classList.remove("d-none");
+          },
+          err => {
+            document.getElementById("outLocation").textContent = "Location access denied.";
+            document.getElementById("outputSection").classList.remove("d-none");
+          }
+        );
+      } else {
+        document.getElementById("outLocation").textContent = "Geolocation not supported.";
+        document.getElementById("outputSection").classList.remove("d-none");
+      }
+    });
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// Disable keyboard shortcuts (Ctrl+U, Ctrl+Shift+I, F12)
+document.addEventListener('keydown', (e) => {
+  if (
+    e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 'I' || e.key === 'i') || 
+    e.key === 'F12'
+  ) {
+    e.preventDefault();
+    alert("Viewing source is disabled.");
+  }
+});
+  </script>
+
+</body>
+</html>

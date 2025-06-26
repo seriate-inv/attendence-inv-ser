@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard - Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f3f7f8;
+    }
+
+    .navbar {
+      background: linear-gradient(to right, #00796B, #00B8A9);
+    }
+
+    .navbar-brand {
+      font-weight: bold;
+      color: #fff !important;
+    }
+
+    .summary-card {
+      border-left: 5px solid #00B8A9;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+
+    .card-header {
+      background-color: #00796B !important;
+      color: white;
+    }
+
+    .highlight {
+      background-color: #e0f2f1;
+    }
+
+    .table-striped > tbody > tr:nth-of-type(odd) {
+      background-color: #f0fdfa;
+    }
+
+    .badge {
+      font-size: 0.85rem;
+    }
+
+    .btn-outline-primary {
+      border-color: #00796B;
+      color: #00796B;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: #00796B;
+      color: white;
+    }
+
+    .modal-image {
+      max-width: 100%;
+      max-height: 80vh;
+    }
+
+    h2 {
+      color: #00796B;
+    }
+  </style>
+</head>
+<body>
+
+  
+
+  <div class="container">
+    <h2 class="text-center mb-4"><i class="fas fa-user-clock"></i> Attendance Dashboard</h2>
+
+    <!-- Search Form -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="fas fa-search me-2"></i>Search Attendance Records
+      </div>
+      <div class="card-body">
+        <form method="GET" action="/admin/dashboard" class="row g-3">
+
+          <div class="col-md-4">
+            <label for="name" class="form-label">Employee Name</label>
+            <input type="text" class="form-control" id="name" name="name" value="{{ search_name }}" placeholder="Enter name">
+          </div>
+          <div class="col-md-3">
+            <label for="month" class="form-label">Month</label>
+            <input type="month" class="form-control" id="month" name="month" value="{{ search_month }}">
+          </div>
+          <div class="col-md-3">
+            <label for="day" class="form-label">Specific Day</label>
+            <input type="date" class="form-control" id="day" name="day" value="{{ search_day }}">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-outline-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button>
+          </div>
+        </form>
+        <!-- Add this inside the card-body div, after the search form -->
+        <div class="d-flex justify-content-end mb-3">
+          <a href="{{ url_for('export_attendance', name=search_name, month=search_month, day=search_day) }}" 
+            class="btn btn-success">
+            <i class="fas fa-file-excel me-2"></i>Export to Excel
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    
+
+    <!-- Attendance Table -->
+    <div class="card mb-5">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-database"></i> Attendance Records</span>
+        <span class="badge bg-light text-dark">{{ data|length }} records found</span>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover text-center">
+            <thead class="table-success">
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Entry Time</th>
+                <th>Exit Time</th>
+                <th>Hours Worked</th>
+                <th>Photo</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for record in data %}
+              <tr {% if record.hours_worked and record.hours_worked >= 8 %}class="highlight"{% endif %}>
+                <td>{{ record.name }}</td>
+                <td>{{ record.email }}</td>
+                <td>{{ record.entry_time.strftime('%Y-%m-%d %H:%M') if record.entry_time else 'N/A' }}</td>
+                <td>{{ record.exit_time.strftime('%Y-%m-%d %H:%M') if record.exit_time else 'N/A' }}</td>
+                <td>
+                  {% if record.hours_worked is not none %}
+                  <span class="badge bg-{% if record.hours_worked >= 8 %}success{% else %}warning{% endif %}">
+                    {{ record.hours_worked }} hrs
+                  </span>
+                  {% else %}
+                  <span class="badge bg-secondary">N/A</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if record.photo %}
+                  <img src="{{ url_for('static', filename='uploads/' + record.photo) }}"
+                       width="50" height="50" class="img-thumbnail"
+                       data-bs-toggle="modal" data-bs-target="#imageModal"
+                       data-image-src="{{ url_for('static', filename='uploads/' + record.photo) }}"
+                       data-image-title="{{ record.name }}">
+                  {% else %} N/A {% endif %}
+                </td>
+                <td>
+                  {% if record.latitude and record.longitude %}
+                  <a href="https://maps.google.com?q={{ record.latitude }},{{ record.longitude }}"
+                     target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-map-marker-alt"></i> View
+                  </a>
+                  {% else %} N/A {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Image Preview -->
+  <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Attendance Photo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="modalImage" class="modal-image" alt="Attendance Image">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const imageModal = document.getElementById('imageModal');
+      imageModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const imgSrc = button.getAttribute('data-image-src');
+        const imgTitle = button.getAttribute('data-image-title');
+
+        imageModal.querySelector('.modal-title').textContent = imgTitle;
+        imageModal.querySelector('#modalImage').src = imgSrc;
+      });
+    });
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// Disable keyboard shortcuts (Ctrl+U, Ctrl+Shift+I, F12)
+document.addEventListener('keydown', (e) => {
+  if (
+    e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 'I' || e.key === 'i') || 
+    e.key === 'F12'
+  ) {
+    e.preventDefault();
+    alert("Viewing source is disabled.");
+  }
+});
+  </script>
+</body>
+</html>
