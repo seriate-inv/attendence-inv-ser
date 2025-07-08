@@ -10,7 +10,7 @@
 </head>
 <body class="bg-light d-flex align-items-center justify-content-center min-vh-100">
 
-  <div class="container-sm">
+  <div class="container-sm" style="max-width: 500px;">
     <h2 class="text-center text-success mb-4">
       <i class="bi bi-person-plus-fill me-2"></i>Attendance Entry
     </h2>
@@ -20,26 +20,33 @@
         <form id="attendanceForm" action="/submit" method="POST" enctype="multipart/form-data">
           <!-- Name -->
           <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-person-fill me-1 text-success"></i> Name
-            </label>
-            <input type="text" class="form-control" id="name" name="name" required>
+            <div class="input-group">
+              <span class="input-group-text bg-success text-white">
+                <i class="bi bi-person-fill"></i>
+              </span>
+              <input type="text" class="form-control" id="name" name="name" placeholder="Name" required>
+            </div>
           </div>
 
           <!-- Email -->
           <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-envelope-fill me-1 text-success"></i> Email
-            </label>
-            <input type="email" class="form-control" id="email" name="email" required>
+            <div class="input-group">
+              <span class="input-group-text bg-success text-white">
+                <i class="bi bi-envelope-fill"></i>
+              </span>
+              <input type="email" class="form-control" id="email" name="email" placeholder="Email" required>
+            </div>
           </div>
 
           <!-- Photo Upload -->
           <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-camera-fill me-1 text-success"></i> Upload Photo
-            </label>
-            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
+            <div class="input-group">
+              <span class="input-group-text bg-success text-white">
+                <i class="bi bi-camera-fill"></i>
+              </span>
+              <input type="file" class="form-control" id="photo" name="photo" accept="image/*" capture="environment" required>
+
+            </div>
           </div>
 
           <!-- Hidden Location -->
@@ -74,65 +81,90 @@
 
   <!-- JavaScript -->
   <script>
-    // Prefill from localStorage
-    window.addEventListener("DOMContentLoaded", () => {
-      const savedName = localStorage.getItem("employee_name");
-      const savedEmail = localStorage.getItem("employee_email");
-      if (savedName) document.getElementById("name").value = savedName;
-      if (savedEmail) document.getElementById("email").value = savedEmail;
-    });
+  // Prefill from localStorage
+  window.addEventListener("DOMContentLoaded", () => {
+    const savedName = localStorage.getItem("employee_name");
+    const savedEmail = localStorage.getItem("employee_email");
+    if (savedName) document.getElementById("name").value = savedName;
+    if (savedEmail) document.getElementById("email").value = savedEmail;
+  });
 
-    // Preview and Geolocation
-    document.getElementById("photo").addEventListener("change", function () {
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const file = this.files[0];
+  let previewGenerated = false; // Track preview status
 
-      localStorage.setItem("employee_name", name);
-      localStorage.setItem("employee_email", email);
+  // Handle file input change
+  document.getElementById("photo").addEventListener("change", function () {
+    const nameField = document.getElementById("name");
+    const emailField = document.getElementById("email");
+    const name = nameField.value.trim();
+    const email = emailField.value.trim();
+    const file = this.files[0];
 
-      const reader = new FileReader();
-      reader.onload = () => document.getElementById("outPhoto").src = reader.result;
-      if (file) reader.readAsDataURL(file);
+    if (!name || !email) {
+      alert("Please enter both Name and Email before selecting a photo.");
+      nameField.focus();
+      this.value = '';
+      return;
+    }
 
-      const now = new Date();
-      document.getElementById("outTime").textContent = now.toLocaleString();
-      document.getElementById("outName").textContent = name;
-      document.getElementById("outEmail").textContent = email;
+    localStorage.setItem("employee_name", name);
+    localStorage.setItem("employee_email", email);
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            const lat = pos.coords.latitude.toFixed(4);
-            const lng = pos.coords.longitude.toFixed(4);
-            document.getElementById("latitude").value = lat;
-            document.getElementById("longitude").value = lng;
-            document.getElementById("outLocation").textContent = `Lat: ${lat}, Lng: ${lng}`;
-            document.getElementById("outputSection").classList.remove("d-none");
-          },
-          err => {
-            document.getElementById("outLocation").textContent = "Location access denied.";
-            document.getElementById("outputSection").classList.remove("d-none");
-          }
-        );
-      } else {
-        document.getElementById("outLocation").textContent = "Geolocation not supported.";
-        document.getElementById("outputSection").classList.remove("d-none");
-      }
-    });
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById("outPhoto").src = reader.result;
+      document.getElementById("outputSection").classList.remove("d-none");
+    };
+    if (file) reader.readAsDataURL(file);
 
-// Disable keyboard shortcuts (Ctrl+U, Ctrl+Shift+I, F12)
-document.addEventListener('keydown', (e) => {
-  if (
-    e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 'I' || e.key === 'i') || 
-    e.key === 'F12'
-  ) {
-    e.preventDefault();
-    alert("Viewing source is disabled.");
-  }
-});
-  </script>
+    const now = new Date();
+    document.getElementById("outTime").textContent = now.toLocaleString();
+    document.getElementById("outName").textContent = name;
+    document.getElementById("outEmail").textContent = email;
+
+    // Get location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude.toFixed(4);
+          const lng = pos.coords.longitude.toFixed(4);
+          document.getElementById("latitude").value = lat;
+          document.getElementById("longitude").value = lng;
+          document.getElementById("outLocation").textContent = `Lat: ${lat}, Lng: ${lng}`;
+        },
+        err => {
+          document.getElementById("outLocation").textContent = "Location access denied.";
+        }
+      );
+    } else {
+      document.getElementById("outLocation").textContent = "Geolocation not supported.";
+    }
+
+    previewGenerated = true; // Mark preview generated
+  });
+
+  // Prevent form submission without preview
+  document.getElementById("attendanceForm").addEventListener("submit", function (e) {
+    if (!previewGenerated) {
+      e.preventDefault();
+      alert("Please select a photo and allow preview before submitting the form.");
+    }
+  });
+
+  // Disable right-click
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Disable inspect shortcuts (Ctrl+U, Ctrl+Shift+I, F12)
+  document.addEventListener('keydown', (e) => {
+    if (
+      e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 'I' || e.key === 'i') ||
+      e.key === 'F12'
+    ) {
+      e.preventDefault();
+      alert("Viewing source is disabled.");
+    }
+  });
+</script>
+
 
 </body>
 </html>

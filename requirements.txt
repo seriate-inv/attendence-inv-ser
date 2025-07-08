@@ -1,0 +1,7 @@
+Flask
+mysql-connector-python
+pandas
+openpyxl
+requests
+email-validator
+gunicorn

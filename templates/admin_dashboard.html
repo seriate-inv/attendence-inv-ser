@@ -10,6 +10,10 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Chart.js for analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
@@ -66,14 +70,221 @@
     h2 {
       color: #00796B;
     }
+
+    .photo-thumbnail {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .photo-thumbnail:hover {
+      transform: scale(1.1);
+    }
+
+    .entry-photo {
+      border: 2px solid #28a745;
+    }
+
+    .exit-photo {
+      border: 2px solid #dc3545;
+    }
+
+    .image-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .delete-btn:hover {
+      background: #c82333;
+    }
+
+    .storage-stats {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .analysis-stats {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .bulk-actions {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .email-section {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .stats-loading {
+      opacity: 0.6;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin: 20px 0;
+    }
+
+    .analysis-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .loading-spinner {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
   </style>
 </head>
 <body>
 
-  
-
   <div class="container">
     <h2 class="text-center mb-4"><i class="fas fa-user-clock"></i> Attendance Dashboard</h2>
+
+    <!-- Storage Stats -->
+    <div class="storage-stats">
+      <div class="row text-center">
+        <div class="col-md-3">
+          <div class="stat-number" id="totalFiles">{{ storage_stats.total_files if storage_stats else 0 }}</div>
+          <div class="stat-label">Total Images</div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-number" id="totalSize">{{ storage_stats.total_size_mb if storage_stats else 0 }} MB</div>
+          <div class="stat-label">Storage Used</div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-number" id="entryFiles">{{ storage_stats.entry_files if storage_stats else 0 }}</div>
+          <div class="stat-label">Entry Images</div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-number" id="exitFiles">{{ storage_stats.exit_files if storage_stats else 0 }}</div>
+          <div class="stat-label">Exit Images</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis Section -->
+    <div class="analysis-card" id="analysisSection" style="display: none;">
+      <h4><i class="fas fa-chart-line me-2"></i>Attendance Analysis</h4>
+      <div class="row text-center">
+        <div class="col-md-3">
+          <div class="stat-number" id="avgHours">-</div>
+          <div class="stat-label">Average Hours/Day</div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-number" id="totalEmployees">-</div>
+          <div class="stat-label">Total Employees</div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-number" id="fullDays">-</div>
+          <div class="stat-label">Full Days (8+ hrs)</div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-number" id="totalDays">-</div>
+          <div class="stat-label">Total Working Days</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="attendanceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions">
+      <div class="d-flex flex-wrap gap-2">
+        
+        <button class="btn btn-warning btn-sm" onclick="bulkDeleteImages('entry')">
+          <i class="fas fa-trash"></i> Delete All Entry Images
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="bulkDeleteImages('exit')">
+          <i class="fas fa-trash"></i> Delete All Exit Images
+        </button>
+        <button class="btn btn-dark btn-sm" onclick="bulkDeleteImages('both')">
+          <i class="fas fa-trash-alt"></i> Delete All Images
+        </button>
+        <button class="btn btn-info btn-sm" onclick="refreshStorageStats()">
+          <i class="fas fa-sync"></i> Refresh Stats
+        </button>
+      </div>
+    </div>
+
+    <!-- Email Section -->
+    <div class="email-section">
+      <h5><i class="fas fa-envelope me-2"></i>Email Report</h5>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="recipientEmail" class="form-label">Recipient Email</label>
+          <input type="email" class="form-control" id="recipientEmail" placeholder="Enter recipient email">
+        </div>
+        <div class="col-md-4">
+          <label for="reportType" class="form-label">Report Type</label>
+          <select class="form-select" id="reportType">
+            <option value="current">Current Filtered Data</option>
+            <option value="analysis">Analysis Report</option>
+            <option value="both">Both Reports</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-success w-100" onclick="emailReport()">
+            <i class="fas fa-paper-plane me-1"></i>Send Email
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Processing your request...</p>
+    </div>
 
     <!-- Search Form -->
     <div class="card mb-4">
@@ -82,7 +293,6 @@
       </div>
       <div class="card-body">
         <form method="GET" action="/admin/dashboard" class="row g-3">
-
           <div class="col-md-4">
             <label for="name" class="form-label">Employee Name</label>
             <input type="text" class="form-control" id="name" name="name" value="{{ search_name }}" placeholder="Enter name">
@@ -98,18 +308,26 @@
           <div class="col-md-2 d-flex align-items-end">
             <button type="submit" class="btn btn-outline-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button>
           </div>
+          <div class="col-md-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ search_start_date }}">
+          </div>
+          <div class="col-md-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ search_end_date }}">
+          </div>
+          <div class="col-md-6 d-flex align-items-end gap-2">
+            <a href="{{ url_for('export_attendance', name=search_name, month=search_month, day=search_day, start_date=search_start_date, end_date=search_end_date) }}" 
+               class="btn btn-success">
+              <i class="fas fa-file-excel me-2"></i>Export to Excel
+            </a>
+            
+          </div>
         </form>
-        <!-- Add this inside the card-body div, after the search form -->
-        <div class="d-flex justify-content-end mb-3">
-          <a href="{{ url_for('export_attendance', name=search_name, month=search_month, day=search_day) }}" 
-            class="btn btn-success">
-            <i class="fas fa-file-excel me-2"></i>Export to Excel
-          </a>
-        </div>
       </div>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Preview Modal -->
     
 
     <!-- Attendance Table -->
@@ -128,8 +346,10 @@
                 <th>Entry Time</th>
                 <th>Exit Time</th>
                 <th>Hours Worked</th>
-                <th>Photo</th>
-                <th>Location</th>
+                <th>Entry Photo</th>
+                <th>Exit Photo</th>
+                <th>Entry Location</th>
+                <th>Exit Location</th>
               </tr>
             </thead>
             <tbody>
@@ -149,21 +369,60 @@
                   {% endif %}
                 </td>
                 <td>
-                  {% if record.photo %}
-                  <img src="{{ url_for('static', filename='uploads/' + record.photo) }}"
-                       width="50" height="50" class="img-thumbnail"
-                       data-bs-toggle="modal" data-bs-target="#imageModal"
-                       data-image-src="{{ url_for('static', filename='uploads/' + record.photo) }}"
-                       data-image-title="{{ record.name }}">
-                  {% else %} N/A {% endif %}
+                  {% if record.entry_photo %}
+                  <div class="image-container">
+                    <img src="{{ url_for('static', filename='uploads/' + record.entry_photo) }}"
+                         width="50" height="50" class="img-thumbnail photo-thumbnail entry-photo"
+                         data-bs-toggle="modal" data-bs-target="#imageModal"
+                         data-image-src="{{ url_for('static', filename='uploads/' + record.entry_photo) }}"
+                         data-image-title="{{ record.name }} - Entry Photo"
+                         title="Entry Photo">
+                    <button class="delete-btn" onclick="deleteImage('{{ record.entry_photo }}', 'entry', '{{ record.name }}', '{{ record.entry_time.strftime('%Y-%m-%d') if record.entry_time else '' }}')"
+                            title="Delete Entry Photo">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                  {% else %} 
+                  <span class="badge bg-secondary">No Entry Photo</span>
+                  {% endif %}
                 </td>
                 <td>
-                  {% if record.latitude and record.longitude %}
-                  <a href="https://maps.google.com?q={{ record.latitude }},{{ record.longitude }}"
-                     target="_blank" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-map-marker-alt"></i> View
+                  {% if record.exit_photo %}
+                  <div class="image-container">
+                    <img src="{{ url_for('static', filename='uploads/' + record.exit_photo) }}"
+                         width="50" height="50" class="img-thumbnail photo-thumbnail exit-photo"
+                         data-bs-toggle="modal" data-bs-target="#imageModal"
+                         data-image-src="{{ url_for('static', filename='uploads/' + record.exit_photo) }}"
+                         data-image-title="{{ record.name }} - Exit Photo"
+                         title="Exit Photo">
+                    <button class="delete-btn" onclick="deleteImage('{{ record.exit_photo }}', 'exit', '{{ record.name }}', '{{ record.entry_time.strftime('%Y-%m-%d') if record.entry_time else '' }}')"
+                            title="Delete Exit Photo">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                  {% else %} 
+                  <span class="badge bg-secondary">No Exit Photo</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if record.entry_latitude and record.entry_longitude %}
+                  <a href="https://maps.google.com?q={{ record.entry_latitude }},{{ record.entry_longitude }}"
+                     target="_blank" class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-map-marker-alt"></i> Entry
                   </a>
-                  {% else %} N/A {% endif %}
+                  {% else %} 
+                  <span class="badge bg-secondary">No Entry Location</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if record.exit_latitude and record.exit_longitude %}
+                  <a href="https://maps.google.com?q={{ record.exit_latitude }},{{ record.exit_longitude }}"
+                     target="_blank" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-map-marker-alt"></i> Exit
+                  </a>
+                  {% else %} 
+                  <span class="badge bg-secondary">No Exit Location</span>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}
@@ -172,18 +431,18 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal for Image Preview -->
-  <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Attendance Photo</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body text-center">
-          <img id="modalImage" class="modal-image" alt="Attendance Image">
+    <!-- Image Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="imageModalLabel">Image Preview</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <img id="modalImage" src="" alt="Preview" class="modal-image">
+          </div>
         </div>
       </div>
     </div>
@@ -192,29 +451,346 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const imageModal = document.getElementById('imageModal');
-      imageModal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const imgSrc = button.getAttribute('data-image-src');
-        const imgTitle = button.getAttribute('data-image-title');
+    let attendanceChart = null;
 
-        imageModal.querySelector('.modal-title').textContent = imgTitle;
-        imageModal.querySelector('#modalImage').src = imgSrc;
-      });
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Image modal functionality
+      const imageModal = document.getElementById('imageModal');
+      if (imageModal) {
+        imageModal.addEventListener('show.bs.modal', function (event) {
+          const button = event.relatedTarget;
+          const imgSrc = button.getAttribute('data-image-src');
+          const imgTitle = button.getAttribute('data-image-title');
+
+          imageModal.querySelector('.modal-title').textContent = imgTitle;
+          imageModal.querySelector('#modalImage').src = imgSrc;
+        });
+      }
     });
+
+    // Analyze attendance data
+    
+
+    // Create attendance chart
+    function createAttendanceChart(chartData) {
+      const ctx = document.getElementById('attendanceChart').getContext('2d');
+      
+      // Destroy existing chart if it exists
+      if (attendanceChart) {
+        attendanceChart.destroy();
+      }
+      
+      attendanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: chartData.labels,
+          datasets: [{
+            label: 'Hours Worked',
+            data: chartData.data,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Daily Hours Worked',
+              color: 'white'
+            },
+            legend: {
+              labels: {
+                color: 'white'
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                color: 'white'
+              },
+              grid: {
+                color: 'rgba(255, 255, 255, 0.2)'
+              }
+            },
+            x: {
+              ticks: {
+                color: 'white'
+              },
+              grid: {
+                color: 'rgba(255, 255, 255, 0.2)'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Email report function
+    function emailReport() {
+      const recipientEmail = document.getElementById('recipientEmail').value;
+      const reportType = document.getElementById('reportType').value;
+      
+      if (!recipientEmail) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Email Required',
+          text: 'Please enter a recipient email address'
+        });
+        return;
+      }
+      
+      if (!isValidEmail(recipientEmail)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid Email',
+          text: 'Please enter a valid email address'
+        });
+        return;
+      }
+      
+      const loadingSpinner = document.getElementById('loadingSpinner');
+      loadingSpinner.style.display = 'block';
+      
+      // Get current search parameters
+      const params = {
+        email: recipientEmail,
+        report_type: reportType,
+        name: document.getElementById('name').value || '',
+        month: document.getElementById('month').value || '',
+        day: document.getElementById('day').value || '',
+        start_date: document.getElementById('start_date').value || '',
+        end_date: document.getElementById('end_date').value || ''
+      };
+
+      fetch('/admin/email-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Email Sent',
+            text: `Report has been sent to ${recipientEmail}`,
+            timer: 3000,
+            showConfirmButton: false
+          });
+          // Clear the email field
+          document.getElementById('recipientEmail').value = '';
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Email Failed',
+            text: data.message || 'Failed to send email report'
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error sending email:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'An error occurred while sending the email'
+        });
+      })
+      .finally(() => {
+        loadingSpinner.style.display = 'none';
+      });
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    // Delete single image
+    function deleteImage(filename, type, employeeName, entryDate) {
+      Swal.fire({
+        title: 'Are you sure?',
+        text: `This will permanently delete the ${type} photo for ${employeeName}`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          fetch('/admin/delete-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              filename: filename,
+              type: type,
+              employee_name: employeeName,
+              entry_date: entryDate
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              Swal.fire(
+                'Deleted!',
+                data.message,
+                'success'
+              ).then(() => {
+                location.reload();
+              });
+            } else {
+              Swal.fire(
+                'Error!',
+                data.message,
+                'error'
+              );
+            }
+          })
+          .catch(error => {
+            Swal.fire(
+              'Error!',
+              'An error occurred while deleting the image',
+              'error'
+            );
+          });
+        }
+      });
+    }
+
+    // Bulk delete images
+    function bulkDeleteImages(deleteType) {
+      let confirmText = '';
+      if (deleteType === 'entry') {
+        confirmText = 'This will delete ALL entry images from the system.';
+      } else if (deleteType === 'exit') {
+        confirmText = 'This will delete ALL exit images from the system.';
+      } else {
+        confirmText = 'This will delete ALL images (both entry and exit) from the system.';
+      }
+
+      Swal.fire({
+        title: 'Are you absolutely sure?',
+        text: confirmText + ' This action cannot be undone!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete them!',
+        inputPlaceholder: 'Type "DELETE" to confirm',
+        input: 'text',
+        preConfirm: (value) => {
+          if (value !== 'DELETE') {
+            Swal.showValidationMessage('Please type "DELETE" to confirm');
+          }
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: 'Deleting images...',
+            text: 'Please wait while we delete the images.',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          fetch('/admin/bulk-delete-images', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              delete_type: deleteType
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              Swal.fire(
+                'Deleted!',
+                data.message,
+                'success'
+              ).then(() => {
+                location.reload();
+              });
+            } else {
+              Swal.fire(
+                'Error!',
+                data.message,
+                'error'
+              );
+            }
+          })
+          .catch(error => {
+            Swal.fire(
+              'Error!',
+              'An error occurred while deleting images',
+              'error'
+            );
+          });
+        }
+      });
+    }
+
+    // Refresh storage statistics
+    function refreshStorageStats() {
+      const statsContainer = document.querySelector('.storage-stats');
+      statsContainer.classList.add('stats-loading');
+      
+      fetch('/admin/storage-stats')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('totalFiles').textContent = data.stats.total_files;
+            document.getElementById('totalSize').textContent = data.stats.total_size_mb + ' MB';
+            document.getElementById('entryFiles').textContent = data.stats.entry_files;
+            document.getElementById('exitFiles').textContent = data.stats.exit_files;
+            
+            Swal.fire({
+              icon: 'success',
+              title: 'Stats Updated',
+              text: 'Storage statistics have been refreshed',
+              timer: 1500,
+              showConfirmButton: false
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching storage stats:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to refresh storage statistics'
+          });
+        })
+        .finally(() => {
+          statsContainer.classList.remove('stats-loading');
+        });
+    }
+    
+    // Disable right-click context menu
     document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// Disable keyboard shortcuts (Ctrl+U, Ctrl+Shift+I, F12)
-document.addEventListener('keydown', (e) => {
-  if (
-    e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 'I' || e.key === 'i') || 
-    e.key === 'F12'
-  ) {
-    e.preventDefault();
-    alert("Viewing source is disabled.");
-  }
-});
+    // Disable keyboard shortcuts (Ctrl+U, Ctrl+Shift+I, F12)
+    document.addEventListener('keydown', (e) => {
+      if (
+        e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 'I' || e.key === 'i') || 
+        e.key === 'F12'
+      ) {
+        e.preventDefault();
+        alert("Viewing source is disabled.");
+      }
+    });
   </script>
 </body>
 </html>
